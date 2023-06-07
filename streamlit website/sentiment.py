@@ -1,11 +1,14 @@
-from urllib.request import urlopen, Request
-from bs4 import BeautifulSoup
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.dates import DateFormatter
 import matplotlib.dates as mdates
+from urllib.request import urlopen, Request
+from urllib.parse import quote
+
+from bs4 import BeautifulSoup
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 
 def run_sentiment(tickers: list = ["AMZN", "AAPL"]):
@@ -13,7 +16,7 @@ def run_sentiment(tickers: list = ["AMZN", "AAPL"]):
 
     news_tables = {}
     for ticker in tickers:
-        url = finviz_url + ticker
+        url = finviz_url + quote(ticker)
 
         req = Request(url=url, headers={"user-agent": "my-app"})
         response = urlopen(req)
@@ -41,6 +44,7 @@ def run_sentiment(tickers: list = ["AMZN", "AAPL"]):
 
     df = pd.DataFrame(parsed_data, columns=["ticker", "date", "time", "title"])
 
+    st.write(df)
     vader = SentimentIntensityAnalyzer()
 
     f = lambda title: vader.polarity_scores(title)["compound"]
@@ -51,7 +55,10 @@ def run_sentiment(tickers: list = ["AMZN", "AAPL"]):
     mean_df = df.groupby(["ticker", "date"]).mean().unstack()
     mean_df = mean_df.xs("compound", axis="columns")
     mean_df.plot(kind="bar")
-    plt.show()
+    plt.title("Mean Sentiment Score")
+    plt.xlabel("Date")
+    plt.ylabel("Compound Sentiment Score")
+    st.pyplot(plt)
 
     # Ensure that the 'date' column is in datetime format
     df["date"] = pd.to_datetime(df["date"])
@@ -76,4 +83,24 @@ def run_sentiment(tickers: list = ["AMZN", "AAPL"]):
         plt.ylabel("Compound Sentiment Score")
         plt.legend()
         plt.grid(True)
-        plt.show()
+        st.pyplot(plt)
+
+
+def main():
+    st.title("Stock Sentiment Analysis")
+    tickers = (
+        st.text_input(
+            "Enter tickers (comma-separated)",
+            value="AMZN, AAPL",
+            help="Enter the tickers of the stocks you want to analyze.",
+        )
+        .upper()
+        .split(",")
+    )
+
+    st.info("Scraping news data and analyzing sentiment...")
+    run_sentiment(tickers)
+
+
+if __name__ == "__main__":
+    main()
